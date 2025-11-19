@@ -1,0 +1,94 @@
+version: '3.8'
+
+# Development docker-compose - Only infrastructure services
+# Services (API Gateway, Tenant, Auth, User, etc.) run locally via uvicorn
+# PostgreSQL runs on local server (configured via .env)
+
+services:
+  # Redis for caching
+  # Using port 6380 to avoid conflict with existing Redis on 6379
+  redis:
+    image: redis:7-alpine
+    container_name: innoerp-redis
+    ports:
+      - "6380:6379"  # External port 6380 maps to internal port 6379
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: innoerp-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  # Kafka (using version 7.4.0 which supports Zookeeper mode)
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: innoerp-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: innoerp-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: innoerp-kibana
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+
+  # Fluentd (using image with elasticsearch plugin pre-installed)
+  fluentd:
+    image: fluent/fluentd-kubernetes-daemonset:v1-debian-elasticsearch
+    container_name: innoerp-fluentd
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ../monitoring/efk/fluentd.conf:/fluentd/etc/fluent.conf
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    environment:
+      - FLUENTD_CONF=fluent.conf
+
+volumes:
+  redis_data:
+  es_data:
+
