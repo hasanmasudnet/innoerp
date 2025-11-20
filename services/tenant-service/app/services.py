@@ -17,6 +17,7 @@ from app.models import (
     OrganizationCreate, OrganizationUpdate,
     OrganizationResponse,
     OrganizationSubscriptionResponse,
+    SubscriptionPlanCreate, SubscriptionPlanResponse,
     OrganizationModuleCreate, OrganizationModuleUpdate,
     OrganizationModuleResponse
 )
