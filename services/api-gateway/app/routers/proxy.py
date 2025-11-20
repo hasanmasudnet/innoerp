@@ -120,6 +120,7 @@ async def proxy(
     - /api/v1/users/* -> user-service
     - /api/v1/projects/* -> project-service
     - /api/v1/employees/* -> employee-service
+    - /api/v1/monitoring/* -> monitoring-service
     """
     # Extract path after service name
     path = request.url.path
@@ -141,6 +142,11 @@ async def proxy(
     elif path.startswith("/api/v1/employees"):
         service = "employees"
         service_path = path.replace("/api/v1/employees", "")
+    elif path.startswith("/api/v1/monitoring"):
+        service = "monitoring"
+        service_path = path.replace("/api/v1/monitoring", "")
+        # Monitoring endpoints require super admin authentication
+        require_auth = True
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

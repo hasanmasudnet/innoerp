@@ -268,3 +268,121 @@ class SubscriptionListFilters(BaseModel):
     organization_id: Optional[UUID] = None
     skip: int = 0
     limit: int = 100
+
+
+# Module Registry models
+class ModuleRegistryBase(BaseModel):
+    module_id: str = Field(..., min_length=1, max_length=100)
+    module_name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    category: Optional[str] = Field(None, max_length=100)
+    is_active: bool = True
+    service_name: Optional[str] = Field(None, max_length=100)
+    api_endpoint: Optional[str] = Field(None, max_length=255)
+    version: Optional[str] = Field(None, max_length=50)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ModuleRegistryCreate(ModuleRegistryBase):
+    """Request model for creating module in registry"""
+    pass
+
+
+class ModuleRegistryUpdate(BaseModel):
+    """Request model for updating module in registry"""
+    module_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    category: Optional[str] = Field(None, max_length=100)
+    is_active: Optional[bool] = None
+    service_name: Optional[str] = Field(None, max_length=100)
+    api_endpoint: Optional[str] = Field(None, max_length=255)
+    version: Optional[str] = Field(None, max_length=50)
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class ModuleRegistryResponse(ModuleRegistryBase):
+    """Response model for module registry"""
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Industry Template models
+class IndustryTemplateBase(BaseModel):
+    industry_name: str = Field(..., min_length=1, max_length=255)
+    industry_code: str = Field(..., min_length=1, max_length=100, pattern="^[a-z0-9-_]+$")
+    description: Optional[str] = None
+    is_active: bool = True
+
+
+class IndustryTemplateCreate(IndustryTemplateBase):
+    """Request model for creating industry template"""
+    pass
+
+
+class IndustryTemplateUpdate(BaseModel):
+    """Request model for updating industry template"""
+    industry_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class IndustryTemplateResponse(IndustryTemplateBase):
+    """Response model for industry template"""
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Industry Module Template models
+class IndustryModuleTemplateBase(BaseModel):
+    module_id: str = Field(..., min_length=1, max_length=100)
+    is_required: bool = False
+    default_config: Dict[str, Any] = Field(default_factory=dict)
+    display_order: int = 0
+
+
+class IndustryModuleTemplateCreate(IndustryModuleTemplateBase):
+    """Request model for adding module to industry template"""
+    pass
+
+
+class IndustryModuleTemplateUpdate(BaseModel):
+    """Request model for updating module in industry template"""
+    is_required: Optional[bool] = None
+    default_config: Optional[Dict[str, Any]] = None
+    display_order: Optional[int] = None
+
+
+class IndustryModuleTemplateResponse(IndustryModuleTemplateBase):
+    """Response model for industry module template"""
+    id: UUID
+    template_id: UUID
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Module assignment models
+class ModuleAssignmentRequest(BaseModel):
+    """Request model for assigning module to organization"""
+    module_id: str = Field(..., min_length=1, max_length=100)
+    config: Dict[str, Any] = Field(default_factory=dict)
+
+
+class BulkModuleAssignmentRequest(BaseModel):
+    """Request model for bulk module assignment"""
+    module_ids: List[str] = Field(..., min_items=1)
+    industry_code: Optional[str] = None  # Optional: apply industry template configs
+
+
+class IndustryTemplateApplicationRequest(BaseModel):
+    """Request model for applying industry template to organization"""
+    industry_code: str = Field(..., min_length=1, max_length=100)

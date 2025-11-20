@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from shared.common.errors import ResourceNotFoundError, ValidationError
 from app.schemas import (
-    Organization, SubscriptionPlan, OrganizationSubscription, OrganizationModule, OrganizationBranding
+    Organization, SubscriptionPlan, OrganizationSubscription, OrganizationModule, OrganizationBranding,
+    ModuleRegistry, IndustryTemplate, IndustryModuleTemplate
 )
 from app.models import (
     OrganizationCreate, OrganizationUpdate,
@@ -313,4 +314,229 @@ class OrganizationBrandingRepository:
         db.commit()
         db.refresh(branding)
         return branding
+
+
+class ModuleRegistryRepository:
+    """Repository for module registry operations"""
+    
+    @staticmethod
+    def get_by_id(db: Session, module_id: str) -> Optional[ModuleRegistry]:
+        """Get module by ID"""
+        return db.query(ModuleRegistry).filter(ModuleRegistry.module_id == module_id).first()
+    
+    @staticmethod
+    def list_all(db: Session, active_only: bool = False) -> List[ModuleRegistry]:
+        """List all modules in registry"""
+        query = db.query(ModuleRegistry)
+        if active_only:
+            query = query.filter(ModuleRegistry.is_active == True)
+        return query.order_by(ModuleRegistry.module_name).all()
+    
+    @staticmethod
+    def create(db: Session, module_data: dict) -> ModuleRegistry:
+        """Create new module in registry"""
+        module = ModuleRegistry(**module_data)
+        db.add(module)
+        db.commit()
+        db.refresh(module)
+        return module
+    
+    @staticmethod
+    def update(db: Session, module_id: str, module_data: dict) -> ModuleRegistry:
+        """Update module in registry"""
+        module = ModuleRegistryRepository.get_by_id(db, module_id)
+        if not module:
+            raise ResourceNotFoundError(f"Module {module_id} not found in registry")
+        
+        update_data = {k: v for k, v in module_data.items() if v is not None}
+        for key, value in update_data.items():
+            setattr(module, key, value)
+        
+        db.commit()
+        db.refresh(module)
+        return module
+    
+    @staticmethod
+    def delete(db: Session, module_id: str) -> bool:
+        """Soft delete module (set is_active=False)"""
+        module = ModuleRegistryRepository.get_by_id(db, module_id)
+        if not module:
+            raise ResourceNotFoundError(f"Module {module_id} not found in registry")
+        
+        module.is_active = False
+        db.commit()
+        return True
+    
+    @staticmethod
+    def activate(db: Session, module_id: str) -> ModuleRegistry:
+        """Activate module"""
+        module = ModuleRegistryRepository.get_by_id(db, module_id)
+        if not module:
+            raise ResourceNotFoundError(f"Module {module_id} not found in registry")
+        
+        module.is_active = True
+        db.commit()
+        db.refresh(module)
+        return module
+    
+    @staticmethod
+    def deactivate(db: Session, module_id: str) -> ModuleRegistry:
+        """Deactivate module"""
+        module = ModuleRegistryRepository.get_by_id(db, module_id)
+        if not module:
+            raise ResourceNotFoundError(f"Module {module_id} not found in registry")
+        
+        module.is_active = False
+        db.commit()
+        db.refresh(module)
+        return module
+    
+    @staticmethod
+    def validate_modules_exist(db: Session, module_ids: List[str]) -> tuple[List[str], List[str]]:
+        """Validate modules exist in registry. Returns (valid_modules, invalid_modules)"""
+        modules = db.query(ModuleRegistry).filter(
+            and_(
+                ModuleRegistry.module_id.in_(module_ids),
+                ModuleRegistry.is_active == True
+            )
+        ).all()
+        
+        valid_ids = {m.module_id for m in modules}
+        invalid_ids = [mid for mid in module_ids if mid not in valid_ids]
+        
+        return (list(valid_ids), invalid_ids)
+
+
+class IndustryTemplateRepository:
+    """Repository for industry template operations"""
+    
+    @staticmethod
+    def get_by_code(db: Session, industry_code: str) -> Optional[IndustryTemplate]:
+        """Get industry template by code"""
+        return db.query(IndustryTemplate).filter(IndustryTemplate.industry_code == industry_code).first()
+    
+    @staticmethod
+    def list_all(db: Session, active_only: bool = False) -> List[IndustryTemplate]:
+        """List all industry templates"""
+        query = db.query(IndustryTemplate)
+        if active_only:
+            query = query.filter(IndustryTemplate.is_active == True)
+        return query.order_by(IndustryTemplate.industry_name).all()
+    
+    @staticmethod
+    def create(db: Session, template_data: dict) -> IndustryTemplate:
+        """Create new industry template"""
+        template = IndustryTemplate(**template_data)
+        db.add(template)
+        db.commit()
+        db.refresh(template)
+        return template
+    
+    @staticmethod
+    def update(db: Session, industry_code: str, template_data: dict) -> IndustryTemplate:
+        """Update industry template"""
+        template = IndustryTemplateRepository.get_by_code(db, industry_code)
+        if not template:
+            raise ResourceNotFoundError(f"Industry template {industry_code} not found")
+        
+        update_data = {k: v for k, v in template_data.items() if v is not None}
+        for key, value in update_data.items():
+            setattr(template, key, value)
+        
+        db.commit()
+        db.refresh(template)
+        return template
+    
+    @staticmethod
+    def delete(db: Session, industry_code: str) -> bool:
+        """Soft delete industry template"""
+        template = IndustryTemplateRepository.get_by_code(db, industry_code)
+        if not template:
+            raise ResourceNotFoundError(f"Industry template {industry_code} not found")
+        
+        template.is_active = False
+        db.commit()
+        return True
+
+
+class IndustryModuleTemplateRepository:
+    """Repository for industry module template operations"""
+    
+    @staticmethod
+    def get_modules_for_industry(db: Session, industry_code: str) -> List[IndustryModuleTemplate]:
+        """Get all modules for an industry template"""
+        return db.query(IndustryModuleTemplate).join(
+            IndustryTemplate
+        ).filter(
+            IndustryTemplate.industry_code == industry_code
+        ).order_by(IndustryModuleTemplate.display_order).all()
+    
+    @staticmethod
+    def add_module_to_industry(
+        db: Session,
+        template_id: UUID,
+        module_id: str,
+        is_required: bool = False,
+        default_config: dict = None,
+        display_order: int = 0
+    ) -> IndustryModuleTemplate:
+        """Add module to industry template"""
+        template = IndustryModuleTemplate(
+            template_id=template_id,
+            module_id=module_id,
+            is_required=is_required,
+            default_config=default_config or {},
+            display_order=display_order
+        )
+        db.add(template)
+        db.commit()
+        db.refresh(template)
+        return template
+    
+    @staticmethod
+    def remove_module_from_industry(db: Session, template_id: UUID, module_id: str) -> bool:
+        """Remove module from industry template"""
+        template = db.query(IndustryModuleTemplate).filter(
+            and_(
+                IndustryModuleTemplate.template_id == template_id,
+                IndustryModuleTemplate.module_id == module_id
+            )
+        ).first()
+        
+        if template:
+            db.delete(template)
+            db.commit()
+            return True
+        return False
+    
+    @staticmethod
+    def update_module_in_industry(
+        db: Session,
+        template_id: UUID,
+        module_id: str,
+        is_required: bool = None,
+        default_config: dict = None,
+        display_order: int = None
+    ) -> IndustryModuleTemplate:
+        """Update module in industry template"""
+        template = db.query(IndustryModuleTemplate).filter(
+            and_(
+                IndustryModuleTemplate.template_id == template_id,
+                IndustryModuleTemplate.module_id == module_id
+            )
+        ).first()
+        
+        if not template:
+            raise ResourceNotFoundError(f"Module {module_id} not found in template {template_id}")
+        
+        if is_required is not None:
+            template.is_required = is_required
+        if default_config is not None:
+            template.default_config = default_config
+        if display_order is not None:
+            template.display_order = display_order
+        
+        db.commit()
+        db.refresh(template)
+        return template
 

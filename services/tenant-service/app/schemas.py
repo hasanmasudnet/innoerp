@@ -1,7 +1,7 @@
 """
 SQLAlchemy database models for tenant service
 """
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, JSON, Numeric
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, JSON, Numeric, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -21,6 +21,10 @@ class Organization(BaseModel):
     owner_name = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     trial_ends_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Industry
+    industry_code = Column(String(100), nullable=True, index=True)
+    industry_name = Column(String(255), nullable=True)
     
     # Stripe
     stripe_customer_id = Column(String(255), nullable=True, index=True)
@@ -76,6 +80,8 @@ class OrganizationModule(BaseModel):
     is_enabled = Column(Boolean, default=True, nullable=False)
     config = Column(JSON, nullable=False, default=dict)
     enabled_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     organization = relationship("Organization", back_populates="modules")
@@ -117,4 +123,64 @@ class OrganizationBranding(BaseModel):
     
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ModuleRegistry(BaseModel):
+    """Module registry - system-wide module definitions"""
+    __tablename__ = "module_registry"
+    
+    module_id = Column(String(100), primary_key=True)  # e.g., "projects", "hr", "crm"
+    module_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(100), nullable=True)  # e.g., "Core", "Industry-Specific"
+    is_active = Column(Boolean, default=True, nullable=False)
+    service_name = Column(String(100), nullable=True)  # microservice that handles this module
+    api_endpoint = Column(String(255), nullable=True)  # base endpoint for module
+    version = Column(String(50), nullable=True)
+    # Use metadata_ as Python attribute name to avoid SQLAlchemy reserved name conflict
+    # Column name in database remains "metadata"
+    metadata_ = Column("metadata", JSON, nullable=False, default=dict)  # additional config (icon, color, permissions, etc.)
+    
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class IndustryTemplate(BaseModel):
+    """Industry template for module assignments"""
+    __tablename__ = "industry_templates"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    industry_name = Column(String(255), unique=True, nullable=False)  # e.g., "Technology", "Manufacturing"
+    industry_code = Column(String(100), unique=True, nullable=False, index=True)  # e.g., "tech", "manufacturing"
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Relationships
+    module_templates = relationship("IndustryModuleTemplate", back_populates="industry_template", cascade="all, delete-orphan")
+    
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class IndustryModuleTemplate(BaseModel):
+    """Many-to-many relationship between industry templates and modules"""
+    __tablename__ = "industry_module_templates"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("industry_templates.id", ondelete="CASCADE"), nullable=False, index=True)
+    module_id = Column(String(100), ForeignKey("module_registry.module_id"), nullable=False)  # references ModuleRegistry
+    is_required = Column(Boolean, default=False, nullable=False)  # required vs optional
+    default_config = Column(JSON, nullable=False, default=dict)  # default module configuration
+    display_order = Column(Integer, default=0, nullable=False)
+    
+    # Relationships
+    industry_template = relationship("IndustryTemplate", back_populates="module_templates")
+    module_registry = relationship("ModuleRegistry")
+    
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        {"schema": "public"},
+    )
 

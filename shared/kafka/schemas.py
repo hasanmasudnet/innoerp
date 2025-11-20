@@ -106,3 +106,39 @@ class TaskCreatedEvent(BaseEvent):
 class TaskUpdatedEvent(BaseEvent):
     event_type: str = "task.updated"
     payload: Dict[str, Any]  # Contains updated task data
+
+
+# Module management events
+class ModuleAssignedEvent(BaseEvent):
+    event_type: str = "module.assigned"
+    payload: Dict[str, Any]  # Contains: module_id, organization_id, config, assigned_by
+
+
+class ModuleUnassignedEvent(BaseEvent):
+    event_type: str = "module.unassigned"
+    payload: Dict[str, Any]  # Contains: module_id, organization_id, unassigned_by
+
+
+class ModulesBulkAssignedEvent(BaseEvent):
+    event_type: str = "module.bulk_assigned"
+    payload: Dict[str, Any]  # Contains: module_ids (list), organization_id, industry_code (optional), assigned_by
+
+
+class IndustryTemplateAppliedEvent(BaseEvent):
+    event_type: str = "industry.template_applied"
+    payload: Dict[str, Any]  # Contains: industry_code, organization_id, module_ids (list), applied_by
+
+
+class ModuleConfigUpdatedEvent(BaseEvent):
+    event_type: str = "module.config_updated"
+    payload: Dict[str, Any]  # Contains: module_id, organization_id, config, updated_by
+
+
+class ModuleRegisteredEvent(BaseEvent):
+    event_type: str = "module.registered"
+    payload: Dict[str, Any]  # Contains: module_id, module_name, service_name, registered_by
+
+
+class ModuleUpdatedEvent(BaseEvent):
+    event_type: str = "module.updated"
+    payload: Dict[str, Any]  # Contains: module_id, updates, updated_by

@@ -163,6 +163,7 @@ Examples:
         ("Tenant Service", 8001, project_root / "services" / "tenant-service"),
         ("Auth Service", 8002, project_root / "services" / "auth-service"),
         ("User Service", 8003, project_root / "services" / "user-service"),
+        ("Monitoring Service", 8006, project_root / "services" / "monitoring-service"),
     ]
     
     for name, port, service_path in services:
@@ -178,60 +179,38 @@ Examples:
     print("=" * 60)
     print()
     print("Services running:")
-    print("  - API Gateway:    http://localhost:8000")
-    print("  - Tenant Service: http://localhost:8001")
-    print("  - Auth Service:   http://localhost:8002")
-    print("  - User Service:   http://localhost:8003")
+    print("  - API Gateway:      http://localhost:8000")
+    print("  - Tenant Service:   http://localhost:8001")
+    print("  - Auth Service:     http://localhost:8002")
+    print("  - User Service:     http://localhost:8003")
+    print("  - Monitoring Service: http://localhost:8006")
     print()
     print("API Documentation:")
-    print("  - API Gateway:    http://localhost:8000/docs")
-    print("  - Tenant Service: http://localhost:8001/docs")
-    print("  - Auth Service:   http://localhost:8002/docs")
-    print("  - User Service:   http://localhost:8003/docs")
+    print("  - API Gateway:      http://localhost:8000/docs")
+    print("  - Tenant Service:   http://localhost:8001/docs")
+    print("  - Auth Service:     http://localhost:8002/docs")
+    print("  - User Service:     http://localhost:8003/docs")
+    print("  - Monitoring Service: http://localhost:8006/docs")
     print()
     print("Press Ctrl+C to stop all services")
     print()
     
-    # Wait a bit for services to start
-    print("\nWaiting 10 seconds for services to initialize...")
-    time.sleep(100)
-    
-    # Check if services are running
-    print("\nChecking service status...")
-    all_running = True
-    for i, (name, port, _) in enumerate(services):
-        if processes[i].poll() is not None:  # Process has terminated
-            print(f"[FAIL] {name} has stopped!")
-            all_running = False
-        else:
-            print(f"[OK] {name} is running on port {port}")
-    
-    if not all_running:
-        print("\n[ERROR] Some services failed to start!")
-        print("Check the logs above for errors.")
-        signal_handler(None, None)
-        return
-    
-    print("\n" + "=" * 60)
-    print("[OK] All services are running!")
+    # Simple approach: Just keep running and show logs
+    # Services will output their logs automatically
     print("=" * 60)
-    print("\nMonitoring services... (Press Ctrl+C to stop)")
-    print("Service logs will appear above.\n")
+    print("Services are running! Logs will appear above.")
+    print("=" * 60)
+    print()
     
-    # Monitor processes
+    # Keep the script running and wait for Ctrl+C
     try:
+        # Wait for all processes to finish (or Ctrl+C)
         while True:
-            # Check if any service has stopped
-            for i, proc in enumerate(processes):
-                if proc.poll() is not None:
-                    print(f"\n[ERROR] {services[i][0]} has stopped unexpectedly!")
-            
-            # If all stopped, exit
+            # Check if all processes have stopped
             if all(proc.poll() is not None for proc in processes):
-                print("\n[ERROR] All services have stopped!")
+                print("\n[INFO] All services have stopped.")
                 break
-            
-            time.sleep(50)  # Check every 5 seconds
+            time.sleep(1)  # Simple 1-second check
     except KeyboardInterrupt:
         signal_handler(None, None)
 

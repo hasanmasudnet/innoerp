@@ -1,21 +1,21 @@
 """
-Main FastAPI application for user service
+Main FastAPI application for monitoring service
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import users
+from app.routers import monitoring
 from shared.common.logging import get_logger, log_entry_exit
 from shared.common.middleware import RequestLoggingMiddleware
 
 # Initialize logger with EALogger
-app_name = "user-service"
+app_name = "monitoring-service"
 logger = get_logger(__name__, app_name=app_name)
 
 # Create FastAPI app
 app = FastAPI(
-    title="User Service",
-    description="User profile and user management service",
+    title="Monitoring Service",
+    description="Monitoring and observability service for innoERP",
     version=settings.service_version
 )
 
@@ -32,7 +32,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(users.router, prefix=settings.api_prefix)
+app.include_router(monitoring.router, prefix=settings.api_prefix)
 
 
 @app.get("/health")
@@ -58,6 +58,30 @@ async def startup_event():
         "startup",
         "",
         app_name
+    )
+    logger.info(
+        f"Elasticsearch: {settings.elasticsearch_url}",
+        "startup",
+        "startup",
+        "",
+        app_name,
+        extra={"elasticsearch_url": settings.elasticsearch_url}
+    )
+    logger.info(
+        f"Kafka: {settings.kafka_bootstrap_servers}",
+        "startup",
+        "startup",
+        "",
+        app_name,
+        extra={"kafka_bootstrap_servers": settings.kafka_bootstrap_servers}
+    )
+    logger.info(
+        f"Redis: {settings.redis_host}:{settings.redis_port}",
+        "startup",
+        "startup",
+        "",
+        app_name,
+        extra={"redis_host": settings.redis_host, "redis_port": settings.redis_port}
     )
 
 

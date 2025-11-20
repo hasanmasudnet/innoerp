@@ -1,9 +1,13 @@
-fastapi>=0.104.1
+fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
-pydantic>=2.5.0
-pydantic-settings>=2.1.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
+elasticsearch>=8.11.0
+kafka-python>=2.0.2
+redis>=5.0.0
 httpx>=0.25.0
+sse-starlette>=1.6.5
 # EALogger - Install from local wheel: pip install --no-cache-dir D:\Projects\PG.AI\EALogger\dist\ealogger-0.1.0-py3-none-any.whl
 ealogger>=0.1.0
 

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     user_service_url: str = os.getenv("USER_SERVICE_URL", "http://localhost:8003")
     project_service_url: str = os.getenv("PROJECT_SERVICE_URL", "http://localhost:8004")
     employee_service_url: str = os.getenv("EMPLOYEE_SERVICE_URL", "http://localhost:8005")
+    monitoring_service_url: str = os.getenv("MONITORING_SERVICE_URL", "http://localhost:8006")
     
     # API
     api_prefix: str = "/api/v1"
@@ -42,5 +43,6 @@ SERVICE_REGISTRY: Dict[str, str] = {
     "users": settings.user_service_url,
     "projects": settings.project_service_url,
     "employees": settings.employee_service_url,
+    "monitoring": settings.monitoring_service_url,
 }
 

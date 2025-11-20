@@ -175,7 +175,18 @@ def tenant_signup(
             owner_name=signup_data.owner_name
         )
         
-        org = OrganizationService.create_organization(db, org_data, trial_days=14)
+        org = OrganizationService.create_organization(db, org_data, trial_days=14, industry_code=signup_data.industry_code)
+        
+        # Auto-assign modules from industry template if provided
+        if signup_data.industry_code:
+            try:
+                from app.services import ModuleService
+                ModuleService.assign_from_industry(db, org.id, signup_data.industry_code)
+            except Exception as e:
+                # Log error but don't fail signup if module assignment fails
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to assign modules from industry {signup_data.industry_code}: {e}")
         
         # TODO: Create admin user account using auth-service
         # This should be done via API call to auth-service or user-service

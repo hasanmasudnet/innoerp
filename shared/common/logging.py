@@ -1,89 +1,73 @@
 """
-Structured logging utilities for EFK stack integration
+EALogger integration wrapper for innoERP services
+Provides backward compatibility and EALogger integration
 """
-import json
 import logging
-import sys
-from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional
 from uuid import UUID
 from contextvars import ContextVar
 
-# Context variables for request tracking
+# Try to import EALogger
+try:
+    from EALogger.logging_setup import get_logger as ea_get_logger
+    from EALogger.decorators import log_entry_exit as ea_log_entry_exit
+    EALOGGER_AVAILABLE = True
+except ImportError:
+    EALOGGER_AVAILABLE = False
+    ea_get_logger = None
+    ea_log_entry_exit = None
+
+# Context variables for request tracking (for backward compatibility)
 request_id_var: ContextVar[Optional[str]] = ContextVar('request_id', default=None)
 organization_id_var: ContextVar[Optional[UUID]] = ContextVar('organization_id', default=None)
 user_id_var: ContextVar[Optional[UUID]] = ContextVar('user_id', default=None)
 service_name_var: ContextVar[Optional[str]] = ContextVar('service_name', default=None)
 
 
-class StructuredFormatter(logging.Formatter):
-    """Custom formatter for structured JSON logs compatible with EFK stack"""
-    
-    def format(self, record: logging.LogRecord) -> str:
-        log_data = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "level": record.levelname,
-            "service": getattr(record, 'service_name', service_name_var.get('unknown')),
-            "organization_id": str(organization_id_var.get()) if organization_id_var.get() else None,
-            "user_id": str(user_id_var.get()) if user_id_var.get() else None,
-            "request_id": request_id_var.get(),
-            "message": record.getMessage(),
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno,
-        }
-        
-        # Add exception info if present
-        if record.exc_info:
-            log_data["exception"] = self.formatException(record.exc_info)
-        
-        # Add any extra fields
-        if hasattr(record, 'metadata'):
-            log_data["metadata"] = record.metadata
-        
-        return json.dumps(log_data)
-
-
-def setup_logger(
-    service_name: str,
-    level: str = "INFO",
-    log_format: str = "json"
-) -> logging.Logger:
+def get_logger(module_name: str, app_name: str):
     """
-    Setup structured logger for a service
+    Get logger using EALogger if available, otherwise fallback to standard logging
     
     Args:
-        service_name: Name of the service (e.g., 'auth-service')
-        level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        log_format: Format type ('json' or 'text')
+        module_name: Name of the module (usually __name__)
+        app_name: Name of the application/service (e.g., 'auth-service')
     
     Returns:
-        Configured logger instance
+        Logger instance
     """
-    logger = logging.getLogger(service_name)
-    logger.setLevel(getattr(logging, level.upper()))
-    
-    # Remove existing handlers
-    logger.handlers.clear()
-    
-    # Create console handler
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(getattr(logging, level.upper()))
-    
-    if log_format == "json":
-        formatter = StructuredFormatter()
+    if EALOGGER_AVAILABLE:
+        return ea_get_logger(module_name, app_name=app_name)
     else:
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+        # Fallback to standard logging
+        logger = logging.getLogger(module_name)
+        if not logger.handlers:
+            import sys
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setFormatter(logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            ))
+            logger.addHandler(handler)
+            logger.setLevel(logging.INFO)
+        return logger
+
+
+def log_entry_exit(app_name: str):
+    """
+    Decorator for logging function entry/exit using EALogger
     
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    Args:
+        app_name: Name of the application/service
     
-    # Set service name in context
-    service_name_var.set(service_name)
-    
-    return logger
+    Returns:
+        Decorator function
+    """
+    if EALOGGER_AVAILABLE:
+        return ea_log_entry_exit(app_name=app_name)
+    else:
+        # Fallback: no-op decorator
+        def decorator(func):
+            return func
+        return decorator
 
 
 def set_request_context(
@@ -91,7 +75,7 @@ def set_request_context(
     organization_id: Optional[UUID] = None,
     user_id: Optional[UUID] = None
 ):
-    """Set request context for logging"""
+    """Set request context for logging (backward compatibility)"""
     if request_id:
         request_id_var.set(request_id)
     if organization_id:
@@ -101,8 +85,18 @@ def set_request_context(
 
 
 def clear_request_context():
-    """Clear request context"""
+    """Clear request context (backward compatibility)"""
     request_id_var.set(None)
     organization_id_var.set(None)
     user_id_var.set(None)
 
+
+# Backward compatibility: keep setup_logger for existing code
+def setup_logger(service_name: str, level: str = "INFO", log_format: str = "json"):
+    """
+    Setup logger (backward compatibility wrapper)
+    Now uses EALogger if available
+    """
+    logger = get_logger(service_name, app_name=service_name)
+    service_name_var.set(service_name)
+    return logger

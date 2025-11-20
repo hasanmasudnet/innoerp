@@ -6,4 +6,6 @@ pydantic>=2.5.0
 pydantic-settings>=2.1.0
 python-dotenv>=1.0.0
 kafka-python>=2.0.2
+# EALogger - Install from local wheel: pip install --no-cache-dir D:\Projects\PG.AI\EALogger\dist\ealogger-0.1.0-py3-none-any.whl
+ealogger>=0.1.0
 

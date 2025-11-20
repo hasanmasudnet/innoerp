@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Development docker-compose - Only infrastructure services
 # Services (API Gateway, Tenant, Auth, User, etc.) run locally via uvicorn
 # PostgreSQL runs on local server (configured via .env)
@@ -82,6 +80,13 @@ services:
       - elasticsearch
     volumes:
       - ../monitoring/efk/fluentd.conf:/fluentd/etc/fluent.conf
+      - fluentd_buffers:/var/log/fluentd-buffers
+      # Mount service log directories for EALogger file tailing
+      - ../services/auth-service/logs:/var/log/innoerp/services/auth-service/logs:ro
+      - ../services/tenant-service/logs:/var/log/innoerp/services/tenant-service/logs:ro
+      - ../services/user-service/logs:/var/log/innoerp/services/user-service/logs:ro
+      - ../services/api-gateway/logs:/var/log/innoerp/services/api-gateway/logs:ro
+      - ../services/monitoring-service/logs:/var/log/innoerp/services/monitoring-service/logs:ro
     ports:
       - "24224:24224"
       - "24224:24224/udp"
@@ -91,4 +96,5 @@ services:
 volumes:
   redis_data:
   es_data:
+  fluentd_buffers:
 
